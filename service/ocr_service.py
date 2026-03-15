@@ -14,6 +14,7 @@ def process_image(image_path) :
     logger.info(f"Processing: {os.path.basename(image_path)}")
     
     text_lines = ocr_processor.extract_text(image_path)
+    logger.info(f"The text identified is: {text_lines}")
 
     extracted_data = extractor.extract_fields(text_lines)
 
