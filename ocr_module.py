@@ -15,13 +15,13 @@ class OCRProcessor:
             if img is None:
                 raise ValueError(f"Could not load image at {image_path}")
 
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) # grayscle conversion
 
-            width = int(gray.shape[1] * 1.5)
+            width = int(gray.shape[1] * 1.5) # resize width by 1.5
             height = int(gray.shape[0] * 1.5)
             resized = cv2.resize(gray, (width, height), interpolation=cv2.INTER_CUBIC)
 
-            denoised = cv2.bilateralFilter(resized, 9, 75, 75)
+            denoised = cv2.bilateralFilter(resized, 9, 75, 75) # noise reduction while preserving edges
 
             kernel = np.array([[0, -1, 0],
                                [-1, 5,-1],
@@ -29,7 +29,7 @@ class OCRProcessor:
             
             sharpened = cv2.filter2D(denoised, -1, kernel)
 
-            contrast = cv2.convertScaleAbs(sharpened, alpha=1.5, beta=0)
+            contrast = cv2.convertScaleAbs(sharpened, alpha=1.5, beta=0) # increase contrast
 
             thresh = cv2.adaptiveThreshold(
                 contrast,
@@ -38,7 +38,7 @@ class OCRProcessor:
                 cv2.THRESH_BINARY,
                 11,
                 2
-            )
+            ) 
 
             cv2.imwrite("debug_processed.png", thresh)
 
