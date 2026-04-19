@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-head">
+  <p class="eyebrow">Saved shops</p>
+  <h1>Search records</h1>
+  <p class="lede">Find saved storefront data by name, category, or phone number.</p>
+</section>
+
+<form class="search-form" action="{{ url_for('search') }}" method="get">
+  <label class="field">
+    <span>Shop name</span>
+    <input name="shop_name" value="{{ filters.shop_name }}" placeholder="Partial name">
+  </label>
+
+  <label class="field">
+    <span>Category</span>
+    <select name="category">
+      <option value="">All categories</option>
+      {% for category in categories %}
+        <option value="{{ category }}" {% if filters.category == category %}selected{% endif %}>{{ category }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Phone number</span>
+    <input name="phone_number" value="{{ filters.phone_number }}" placeholder="Any digits">
+  </label>
+
+  <button type="submit">Search</button>
+</form>
+
+<section class="results">
+  {% if shops %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Shop</th>
+            <th>Phone</th>
+            <th>Category</th>
+            <th>GST</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for shop in shops %}
+            <tr>
+              <td>
+                <strong>{{ shop.shop_name }}</strong>
+                {% if shop.address %}
+                  <span>{{ shop.address }}</span>
+                {% endif %}
+              </td>
+              <td>{{ (shop.phone_number or [])|join(", ") }}</td>
+              <td>{{ shop.category or "" }}</td>
+              <td>{{ shop.gst_number or "" }}</td>
+              <td>{{ shop.created_at.strftime("%Y-%m-%d %H:%M") if shop.created_at else "" }}</td>
+              <td>
+                <div class="row-actions">
+                  <a class="table-link" href="{{ url_for('edit_shop', shop_id=shop.id) }}">Edit</a>
+                  <form
+                    action="{{ url_for('delete_shop', shop_id=shop.id) }}"
+                    method="post"
+                    onsubmit="return confirm('Delete this shop record permanently?');"
+                  >
+                    <input type="hidden" name="shop_name" value="{{ filters.shop_name }}">
+                    <input type="hidden" name="category" value="{{ filters.category }}">
+                    <input type="hidden" name="phone_number" value="{{ filters.phone_number }}">
+                    <button class="button-danger" type="submit">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No matching records found.</p>
+  {% endif %}
+</section>
+{% endblock %}

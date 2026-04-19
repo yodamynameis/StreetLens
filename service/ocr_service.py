@@ -18,6 +18,18 @@ def process_image(image_path):
     text_lines = ocr_processor.extract_text(image_path)
     logger.info(f"Extracted text: {text_lines}")
 
+    if not text_lines:
+        logger.error("OCR returned no text; skipping extraction and classification")
+        return {
+            "image_name": os.path.basename(image_path),
+            "error": "OCR failed. Gemini could not process the image or returned no text.",
+            "shop_name": "",
+            "phone_number": [],
+            "category": "",
+            "address": "",
+            "gst_number": "",
+        }
+
     # Extract structured fields
     extracted_data = extractor.extract_fields(text_lines)
 

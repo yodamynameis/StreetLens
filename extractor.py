@@ -17,14 +17,19 @@ class InformationExtractor:
         
         self.email_pattern = re.compile(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
         self.phone_pattern = re.compile(r'\b[6-9]\d{9}\b')
-        self.gst_pattern = re.compile(r'\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d][Z][A-Z\d]\b')
+        self.gst_pattern = re.compile(r'\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]\b')
         self.website_pattern = re.compile(r'\b(?:https?://|www\.)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b')
         
         self.address_keywords = [
             'road','street','sector','scheme','nagar','colony','marg','near','opp',
             'market','complex','building','lane','block','chowk','plot','house','no',
-            'apt','apartment','floor','area'
+            'apt','apartment','floor','area','complex','city','town','village','district','state','pincode','pin code','market','bazaar','square','junction','crossing','circle','park','garden',
         ]
+        self.non_address_keywords = [
+            'gst', 'gstin', 'gst no', 'gst number', 'phone', 'mobile', 'email',
+            'website', 'www.', 'http'
+        ]
+        self.address_keywords = [kw for kw in self.address_keywords if kw != 'no']
 
     def extract_fields(self, text_lines):
         clean_lines = []
@@ -43,6 +48,7 @@ class InformationExtractor:
         }
 
         full_text = " ".join(clean_lines)
+        upper_text = full_text.upper()
 
         # -------- PHONE EXTRACTION --------
         phones = set()
@@ -66,9 +72,7 @@ class InformationExtractor:
             data["email"] = match.group()
 
         # -------- GST --------
-        match = self.gst_pattern.search(full_text)
-        if match:
-            data["gst_number"] = match.group()
+        data["gst_number"] = self._extract_gst_number(clean_lines, upper_text)
 
         # -------- WEBSITE --------
         match = self.website_pattern.search(full_text)
@@ -80,11 +84,49 @@ class InformationExtractor:
 
         # -------- ADDRESS --------
         for line in clean_lines:
-            if any(kw in line.lower() for kw in self.address_keywords):
+            line_lower = line.lower()
+            if self._is_non_address_line(line):
+                continue
+            if any(re.search(rf'\b{re.escape(kw)}\b', line_lower) for kw in self.address_keywords):
                 data["address"] = line
                 break
 
         return data
+
+    def _extract_gst_number(self, clean_lines, upper_text):
+        """Extract GSTIN even when OCR inserts spaces, hyphens, or labels."""
+        for line in clean_lines:
+            line_upper = line.upper()
+            match = self.gst_pattern.search(line_upper)
+            if match:
+                return match.group()
+
+            if 'GST' in line_upper:
+                compact_line = re.sub(r'[^A-Z0-9]', '', line_upper)
+                match = self.gst_pattern.search(compact_line)
+                if match:
+                    return match.group()
+
+        compact_text = re.sub(r'[^A-Z0-9]', '', upper_text)
+        match = self.gst_pattern.search(compact_text)
+        if match:
+            return match.group()
+
+        return "NA"
+
+    def _is_non_address_line(self, line):
+        line_lower = line.lower()
+        if any(keyword in line_lower for keyword in self.non_address_keywords):
+            return True
+
+        if self.gst_pattern.search(line.upper()):
+            return True
+
+        if self.email_pattern.search(line) or self.website_pattern.search(line):
+            return True
+
+        digits = re.sub(r'\D', '', line)
+        return len(digits) >= 10 and bool(self.phone_pattern.search(digits[-10:]))
 
     def _extract_shop_name_with_gemini(self, text_lines):
         """Use Gemini to identify the actual shop/business name"""

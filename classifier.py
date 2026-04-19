@@ -1,4 +1,5 @@
 from utils import logger
+import re
 
 class ShopClassifier:
     def __init__(self):
@@ -6,6 +7,12 @@ class ShopClassifier:
         
         # Enhanced category keywords - more specific
         self.category_map = {
+            "electrical": [
+                "electric", "electrical", "electric works", "electrical works",
+                "electricals", "electrician", "wiring", "wire", "cable",
+                "switch", "switchgear", "lighting", "led", "fan", "motor winding",
+                "inverter", "battery", "mcb", "distribution board"
+            ],
             "real_estate": [
                 "real estate", "sale", "purchase", "renting", "rental",
                 "residential", "commercial", "industrial", "group housing",
@@ -150,11 +157,16 @@ class ShopClassifier:
                 "wi-fi"
             ]
         }
+        self.generic_keywords = {
+            "sale", "purchase", "store", "shop", "market", "dealer", "supplier",
+            "service", "services", "repair", "center", "centre", "showroom",
+            "works", "agency", "office"
+        }
 
     def classify(self, text_lines):
         """Classify shop category using keyword matching with scoring"""
         try:
-            full_text = " ".join(text_lines).lower()
+            full_text = self._normalize_text(" ".join(text_lines))
             
             logger.info(f"Classifying with text: {full_text[:100]}...")
             
@@ -163,28 +175,44 @@ class ShopClassifier:
             
             for category, keywords in self.category_map.items():
                 matches = 0
+                specific_matches = 0
+                score = 0
                 matched_keywords = []
                 
                 for keyword in keywords:
-                    if keyword in full_text:
+                    if self._keyword_matches(full_text, keyword):
                         matches += 1
+                        keyword_score = self._keyword_score(keyword)
+                        score += keyword_score
+                        if keyword.lower() not in self.generic_keywords:
+                            specific_matches += 1
                         matched_keywords.append(keyword)
                 
-                if matches > 0:
+                if specific_matches > 0:
                     category_scores[category] = {
-                        'score': matches,
+                        'score': score,
+                        'specific_matches': specific_matches,
+                        'matches': matches,
                         'keywords': matched_keywords
                     }
             
             # If categories found, pick the one with highest matches
             if category_scores:
-                best_category = max(category_scores, key=lambda x: category_scores[x]['score'])
+                best_category = max(
+                    category_scores,
+                    key=lambda x: (
+                        category_scores[x]['score'],
+                        category_scores[x]['specific_matches'],
+                        category_scores[x]['matches']
+                    )
+                )
                 
                 logger.info(f"Category scores: {category_scores}")
                 logger.info(f"Best category: {best_category} with score {category_scores[best_category]['score']}")
                 
                 # Format category name
                 category_names = {
+                    "electrical": "Electrical Store",
                     "real_estate": "Real Estate",
                     "medical": "Medical Store",
                     "restaurant": "Restaurant",
@@ -227,3 +255,25 @@ class ShopClassifier:
         except Exception as e:
             logger.error(f"Classification failed: {e}")
             return "General Store"
+
+    def _normalize_text(self, text):
+        text = text.lower()
+        text = re.sub(r'[^a-z0-9&+\-./\s]', ' ', text)
+        return re.sub(r'\s+', ' ', text).strip()
+
+    def _keyword_matches(self, text, keyword):
+        keyword = self._normalize_text(keyword)
+        if not keyword:
+            return False
+
+        pattern = re.escape(keyword)
+        pattern = pattern.replace(r'\ ', r'\s+')
+        return bool(re.search(rf'(?<![a-z0-9]){pattern}(?![a-z0-9])', text))
+
+    def _keyword_score(self, keyword):
+        normalized_keyword = self._normalize_text(keyword)
+        if normalized_keyword in self.generic_keywords:
+            return 0.25
+        if " " in normalized_keyword:
+            return 3
+        return 1

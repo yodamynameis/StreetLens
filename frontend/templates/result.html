@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-head">
+  <p class="eyebrow">{{ "Saved record" if mode == "edit" else "Extraction review" }}</p>
+  <h1>{{ page_title }}</h1>
+  <p class="lede">Check the extracted values and correct anything that needs a human eye.</p>
+</section>
+
+<section class="review-layout">
+  <aside class="image-panel">
+    {% if image_url %}
+      <img src="{{ image_url }}" alt="Uploaded shop banner">
+    {% else %}
+      <p>No image available</p>
+    {% endif %}
+  </aside>
+
+  <form class="data-form" action="{{ action_url }}" method="post">
+    <input type="hidden" name="image_path" value="{{ data.image_path or '' }}">
+
+    <label class="field">
+      <span>Shop name <strong aria-label="required">*</strong></span>
+      <input name="shop_name" value="{{ data.shop_name or '' }}" required maxlength="255">
+    </label>
+
+    <label class="field">
+      <span>Phone number</span>
+      <textarea name="phone_number" rows="2" placeholder="Separate multiple numbers with commas">{{ data.phone_number_text or '' }}</textarea>
+    </label>
+
+    <label class="field">
+      <span>Category</span>
+      <input name="category" value="{{ data.category or '' }}" maxlength="120">
+    </label>
+
+    <label class="field">
+      <span>Address</span>
+      <textarea name="address" rows="3">{{ data.address or '' }}</textarea>
+    </label>
+
+    <label class="field">
+      <span>GST number</span>
+      <input name="gst_number" value="{{ data.gst_number or '' }}" maxlength="50">
+    </label>
+
+    <label class="field">
+      <span>Miscellaneous data</span>
+      <textarea name="miscellaneous_data" rows="5" placeholder='{"email": "name@example.com"}'>{{ data.miscellaneous_text or '' }}</textarea>
+    </label>
+
+    <label class="field">
+      <span>Extracted text</span>
+      <textarea name="extracted_text" rows="4">{{ data.extracted_text or '' }}</textarea>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit">{{ submit_label }}</button>
+      <a class="button-secondary" href="{{ url_for('search') }}">Search Records</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

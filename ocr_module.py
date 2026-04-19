@@ -1,6 +1,6 @@
 import cv2
-import base64
 import google.genai as genai
+from google.genai import types
 from utils import logger
 import os
 from dotenv import load_dotenv
@@ -46,20 +46,18 @@ class OCRProcessor:
             if processed_img is None:
                 return []
 
-            # Read image and encode to base64
-            with open(image_path, 'rb') as f:
-                image_data = base64.standard_b64encode(f.read()).decode('utf-8')
-            
-            # Determine image type
-            image_extension = image_path.split('.')[-1].lower()
-            mime_types = {
-                'jpg': 'image/jpeg',
-                'jpeg': 'image/jpeg',
-                'png': 'image/png',
-                'gif': 'image/gif',
-                'webp': 'image/webp'
-            }
-            mime_type = mime_types.get(image_extension, 'image/jpeg')
+            success, encoded_img = cv2.imencode(
+                ".jpg",
+                processed_img,
+                [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+            )
+
+            if not success:
+                logger.error(f"Could not encode processed image: {image_path}")
+                return []
+
+            image_bytes = encoded_img.tobytes()
+            logger.info(f"Encoded image for Gemini: {len(image_bytes)} bytes")
 
             # Call Gemini API with new syntax (using self.client)
             message = "Extract all text visible in this shop/storefront image. Return ONLY the text lines found, one per line. Do not include any analysis, just the raw text."
@@ -68,20 +66,16 @@ class OCRProcessor:
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=[
-                    {
-                        "role": "user",
-                        "parts": [
-                            {
-                                "inline_data": {
-                                    "mime_type": mime_type,
-                                    "data": image_data
-                                }
-                            },
-                            {
-                                "text": message
-                            }
-                        ]
-                    }
+                    types.Content(
+                        role="user",
+                        parts=[
+                            types.Part.from_bytes(
+                                data=image_bytes,
+                                mime_type="image/jpeg",
+                            ),
+                            types.Part.from_text(message),
+                        ],
+                    )
                 ]
             )
 
